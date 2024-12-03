@@ -9,11 +9,15 @@ if TYPE_CHECKING:
 
 def wrap_tuple(x):
     """Turn a possible value into a tuple"""
-    pass
+    if isinstance(x, tuple):
+        return x
+    return (x,)
 
 def unwrap_tuple(x):
     """Turn a singleton tuple into a value"""
-    pass
+    if len(x) == 1:
+        return x[0]
+    return x
 
 class ScalarFunction:
     """
