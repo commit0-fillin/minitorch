@@ -33,7 +33,7 @@ def index_to_position(index: Index, strides: Strides) -> int:
     Returns:
         Position in storage
     """
-    pass
+    return sum(i * s for i, s in zip(index, strides))
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """
@@ -48,7 +48,9 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    pass
+    for i in range(len(shape) - 1, -1, -1):
+        out_index[i] = ordinal % shape[i]
+        ordinal //= shape[i]
 
 def broadcast_index(big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex) -> None:
     """
@@ -67,7 +69,12 @@ def broadcast_index(big_index: Index, big_shape: Shape, shape: Shape, out_index:
     Returns:
         None
     """
-    pass
+    offset = len(big_shape) - len(shape)
+    for i, s in enumerate(shape):
+        if s > 1:
+            out_index[i] = big_index[offset + i]
+        else:
+            out_index[i] = 0
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """
@@ -83,7 +90,16 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     Raises:
         IndexingError : if cannot broadcast
     """
-    pass
+    max_len = max(len(shape1), len(shape2))
+    new_shape = []
+    for i in range(max_len):
+        dim1 = shape1[len(shape1) - 1 - i] if i < len(shape1) else 1
+        dim2 = shape2[len(shape2) - 1 - i] if i < len(shape2) else 1
+        if dim1 == 1 or dim2 == 1 or dim1 == dim2:
+            new_shape.append(max(dim1, dim2))
+        else:
+            raise IndexingError(f"Cannot broadcast shapes {shape1} and {shape2}")
+    return tuple(reversed(new_shape))
 
 class TensorData:
     _storage: Storage
@@ -119,7 +135,12 @@ class TensorData:
         Returns:
             bool : True if contiguous
         """
-        pass
+        last_stride = 1
+        for s, stride in zip(reversed(self.shape), reversed(self.strides)):
+            if stride != last_stride:
+                return False
+            last_stride *= s
+        return True
 
     def permute(self, *order: int) -> TensorData:
         """
@@ -131,4 +152,9 @@ class TensorData:
         Returns:
             New `TensorData` with the same storage and a new dimension order.
         """
-        pass
+        if len(order) != len(self.shape):
+            raise IndexingError(f"Cannot permute {len(self.shape)} dimensions with {len(order)} indices")
+        
+        new_shape = tuple(self.shape[i] for i in order)
+        new_strides = tuple(self.strides[i] for i in order)
+        return TensorData(self._storage, new_shape, new_strides)
