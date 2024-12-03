@@ -23,15 +23,19 @@ class Module:
 
     def modules(self) -> Sequence[Module]:
         """Return the direct child modules of this module."""
-        pass
+        return list(self._modules.values())
 
     def train(self) -> None:
         """Set the mode of this module and all descendent modules to `train`."""
-        pass
+        self.training = True
+        for module in self.modules():
+            module.train()
 
     def eval(self) -> None:
         """Set the mode of this module and all descendent modules to `eval`."""
-        pass
+        self.training = False
+        for module in self.modules():
+            module.eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """
@@ -41,11 +45,15 @@ class Module:
         Returns:
             The name and `Parameter` of each ancestor parameter.
         """
-        pass
+        result = list(self._parameters.items())
+        for module_name, module in self._modules.items():
+            for name, param in module.named_parameters():
+                result.append((f"{module_name}.{name}", param))
+        return result
 
     def parameters(self) -> Sequence[Parameter]:
         """Enumerate over all the parameters of this module and its descendents."""
-        pass
+        return [param for _, param in self.named_parameters()]
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """
@@ -58,7 +66,9 @@ class Module:
         Returns:
             Newly created parameter.
         """
-        pass
+        val = Parameter(v, k)
+        self.__dict__['_parameters'][k] = val
+        return val
 
     def __setattr__(self, key: str, val: Parameter) -> None:
         if isinstance(val, Parameter):
@@ -119,7 +129,11 @@ class Parameter:
 
     def update(self, x: Any) -> None:
         """Update the parameter value."""
-        pass
+        self.value = x
+        if hasattr(x, 'requires_grad_'):
+            self.value.requires_grad_(True)
+            if self.name:
+                self.value.name = self.name
 
     def __repr__(self) -> str:
         return repr(self.value)
