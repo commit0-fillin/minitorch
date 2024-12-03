@@ -96,11 +96,13 @@ class Scalar:
         Args:
             x: value to be accumulated
         """
-        pass
+        if self.derivative is None:
+            self.derivative = 0.0
+        self.derivative += x
 
     def is_leaf(self) -> bool:
         """True if this variable created by the user (no `last_fn`)"""
-        pass
+        return self.history.last_fn is None
 
     def backward(self, d_output: Optional[float]=None) -> None:
         """
@@ -110,7 +112,9 @@ class Scalar:
             d_output (number, opt): starting derivative to backpropagate through the model
                                    (typically left out, and assumed to be 1.0).
         """
-        pass
+        if d_output is None:
+            d_output = 1.0
+        backpropagate(Variable(self), d_output)
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
     """
@@ -121,4 +125,11 @@ def derivative_check(f: Any, *scalars: Scalar) -> None:
         f : function from n-scalars to 1-scalar.
         *scalars  : n input scalar values.
     """
-    pass
+    out = f(*scalars)
+    out.backward()
+    
+    for i, x in enumerate(scalars):
+        check = central_difference(f, *scalars, arg=i)
+        print(f"Derivative at position {i}: {x.derivative}")
+        print(f"Central difference at position {i}: {check}")
+        assert abs(x.derivative - check) < 1e-3
